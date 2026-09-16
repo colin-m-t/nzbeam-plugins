@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "types": ["bun"],
+    "paths": {
+      "nzbeam/sdk": ["./sdk/nzbeam-sdk.ts"]
+    }
+  },
+  "include": ["plugins/**/*.ts", "scripts/**/*.ts", "sdk/nzbeam-sdk.ts"]
+}

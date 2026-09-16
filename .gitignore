@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+
+# Built by scripts/build-index.ts and published to GitHub Pages; never committed
+site
+
+# Built by scripts/pack.ts: the zip and the notes a release is made from
+dist
+
+# Written by scripts/typecheck.ts when it checks one plugin
+.tsconfig.plugin.json
+
+# What a plugin writes beside its own code while it runs. `ctx.plugin.dir` is the plugin's folder
+# in the mount, which during development is this working tree, so its runtime files land here.
+plugins/*/data/
+plugins/*/.cache/
+plugins/*/*.sqlite
+plugins/*/*.log
+
+# OS / editor
+.DS_Store
+.idea
+.fleet

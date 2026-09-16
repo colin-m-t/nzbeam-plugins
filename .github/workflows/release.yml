@@ -1,0 +1,58 @@
+# A tag is a release. `bun run release <plugin> <level>` makes the tag; everything below happens
+# on its own from there: the zip, the GitHub release, index.json and the download page.
+#
+# Old releases are left alone, so a user on an older SDK major keeps a version that works.
+name: Release
+
+on:
+  push:
+    tags: ['*@*']
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# One page deploy at a time, and a release in flight is never cancelled half-way.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      # Every tag, since index.json is built from all of them.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+
+      # The tag names a plugin and a version; this checks the two against what the commit holds.
+      - id: pack
+        run: bun run scripts/pack.ts "${{ github.ref_name }}"
+
+      - run: bun run typecheck "${{ steps.pack.outputs.id }}"
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" "${{ steps.pack.outputs.zip }}" \
+            --title "${{ steps.pack.outputs.title }}" \
+            --notes-file "${{ steps.pack.outputs.notes }}"
+
+      - name: Build index.json and the download page
+        run: bun run index
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: pages
+        uses: actions/deploy-pages@v4
