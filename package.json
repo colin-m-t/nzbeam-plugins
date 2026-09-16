@@ -7,6 +7,7 @@
     "new": "bun run scripts/new.ts",
     "sdk:sync": "bun run scripts/sdk-sync.ts",
     "typecheck": "bun run scripts/typecheck.ts",
+    "test": "bun test",
     "release": "bun run scripts/release.ts",
     "index": "bun run scripts/build-index.ts"
   },
