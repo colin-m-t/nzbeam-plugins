@@ -21,13 +21,13 @@ export default definePlugin({
   id: 'sample-cleanup',
   name: 'Sample cleanup',
   description: 'Deletes sample videos before a download is moved into place.',
-  version: '1.0.0',
+  version: '1.0.1',
 
   // The SDK this was written against, written down rather than read from anywhere: it is what the
   // plugin claims, not what it happens to be running on. The Plugins page says what this app
   // speaks. A plugin built for another version still loads — the difference is a line on its row.
   sdkVersion: 1,
-  sdkMinor: 0,
+  sdkMinor: 1,
 
   settings: {
     onlyNamed: {
