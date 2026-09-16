@@ -4,6 +4,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "new": "bun run scripts/new.ts",
     "sdk:sync": "bun run scripts/sdk-sync.ts",
     "typecheck": "bun run scripts/typecheck.ts",
     "release": "bun run scripts/release.ts",
