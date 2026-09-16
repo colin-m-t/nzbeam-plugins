@@ -33,7 +33,8 @@ await rm(DIST, { recursive: true, force: true })
 await mkdir(DIST, { recursive: true })
 
 const zip = join(DIST, zipName(id, version))
-run(['zip', '-r', '-q', zip, id], { cwd: PLUGINS_DIR })
+// A plugin's tests are this repository's business, not something to unzip into somebody's mount.
+run(['zip', '-r', '-q', zip, id, '-x', '*.test.ts'], { cwd: PLUGINS_DIR })
 
 const sdk = `${manifest.sdkVersion}.${manifest.sdkMinor ?? 0}`
 const notes = join(DIST, 'notes.md')
