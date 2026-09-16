@@ -1,0 +1,3 @@
+# One folder per plugin beside this file: plugins/<id>/plugin.ts, the folder's name being the id.
+# This file only keeps the folder in git while there are none, since NZBeam's plugins mount points
+# here and a mount that is not there is an empty one.

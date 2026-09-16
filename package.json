@@ -1,0 +1,17 @@
+{
+  "name": "nzbeam-plugins",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "new": "bun run scripts/new.ts",
+    "sdk:sync": "bun run scripts/sdk-sync.ts",
+    "typecheck": "bun run scripts/typecheck.ts",
+    "release": "bun run scripts/release.ts",
+    "index": "bun run scripts/build-index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "typescript": "^5.9.0"
+  }
+}
