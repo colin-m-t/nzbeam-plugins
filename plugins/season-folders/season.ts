@@ -92,9 +92,15 @@ export interface Unit {
  * Only when nothing above it is an episode is the file's own name read, which is what fans a pack
  * of bare files out: `bla.s01/` names a season and no episode, so it is opened up rather than moved.
  *
- * A file that says nothing, with nothing above it that does, is not this plugin's business.
+ * `downloadName` is the last resort, for an obfuscated post: the files in it are named for nothing
+ * at all — `2ea3afc4….mkv` — and what the release is called is known only to the download. What
+ * moves is then the folder the download would have landed in anyway, so the episode is still named
+ * where a library reads it, and this plugin still renames nothing.
+ *
+ * A file that says nothing, with nothing above it that does and no download name to fall back on,
+ * is not this plugin's business.
  */
-export function unitFor(file: { name: string, relativePath: string }): Unit | null {
+export function unitFor(file: { name: string, relativePath: string }, downloadName?: string): Unit | null {
   const segments = file.relativePath.split('/')
   // The last segment is the file itself; these are the folders it sits in, deepest first.
   for (let index = segments.length - 2; index >= 0; index--) {
@@ -103,7 +109,16 @@ export function unitFor(file: { name: string, relativePath: string }): Unit | nu
   }
 
   const own = seasonOf(file.name)
-  return own === null ? null : { season: own, path: file.name }
+  if (own !== null) return { season: own, path: file.name }
+  if (downloadName === undefined) return null
+
+  // Only when the download brought nothing to go on. A pack says a season somewhere above the file
+  // even when it names no episode, and it is already opened up: falling back there would drag its
+  // leftovers along behind it, which is exactly what opening it up decided not to do.
+  if (segments.some(segment => seasonOf(segment) !== null)) return null
+
+  const said = seasonOf(downloadName)
+  return said === null ? null : { season: said, path: `${downloadName}/${file.relativePath}` }
 }
 
 /** How a season folder is named when there is not one to reuse. */

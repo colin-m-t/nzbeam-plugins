@@ -27,6 +27,7 @@ folder if the episode came in one, the file itself if it did not:
 | a pack of bare episode files | the pack is opened up and each file goes to its own season |
 | a pack of per-episode folders | each episode's folder moves whole, without the pack around it |
 | a pack spanning two seasons | fills `S01` and `S02` both, since every episode is judged on its own |
+| an obfuscated post — `2ea3afc4….mkv`, naming nothing | goes by the **download's** name: the folder it would have landed in moves whole, `S04/From.S04E03.…-ANARCHY/2ea3afc4….mkv` |
 | anything naming no season at all | **left alone** — it lands where it always did, in a folder named after the download |
 
 A folder is only a thing to move whole when it names an **episode**. One that names a season and
@@ -37,6 +38,13 @@ folder is asked before the files in it, so every file under it goes the same way
 That last row is the trade-off worth knowing: a download that carries extras leaves things in two
 places, the episodes in their season folders and the extras in the download's own folder. It is
 the price of never touching what the plugin cannot read.
+
+The download's own name is the last resort, and only when the post brought nothing to go on. Much
+of Usenet is posted obfuscated — the release is `From.S04E03.…-ANARCHY` but the file inside is
+`2ea3afc453d04be4a1abe1c5f624ad7b.mkv` — and there the download is the only thing that says what
+came down. Its folder is what moves, so the episode is still named where a library reads it and
+the plugin still renames nothing. Anything the post itself says wins over it, and a pack is left
+out: its folder already names a season, so opening it up still leaves its extras behind.
 
 A season folder already in the destination is reused whatever its case — `s01`, `S01` and
 `Season 01` all count — so nothing ever makes a second folder for a season that has one. A file

@@ -29,13 +29,23 @@ function fakeFile(relativePath: string, placed: string[]) {
   }
 }
 
-/** Runs the hook over `names` with `destination` as it stands, and answers with the paths it asked for. */
-async function run(destination: string, names: string[], newFolder = 'S01'): Promise<string[]> {
+/**
+ * Runs the hook over `names` with `destination` as it stands, and answers with the paths it asked
+ * for. The download is called something that names no season unless a test says otherwise, so what
+ * the files themselves say is all that is being read.
+ */
+async function run(
+  destination: string,
+  names: string[],
+  newFolder = 'S01',
+  downloadName = 'Whatever.It.Was.Called',
+): Promise<string[]> {
   const placed: string[] = []
   const hook = plugin.hooks!['download:beforeMove']!
   await hook({
     files: names.map(name => fakeFile(name, placed)),
     destination,
+    download: { name: downloadName },
     categorySettings: { newFolder },
     log: () => {},
     audit: () => {},
@@ -120,8 +130,24 @@ describe('the hook', () => {
         { ...fakeFile('bla.s01e01.mkv', placed), placeAt: async () => { throw new Error('is not a path inside the destination.') } },
         fakeFile('bla.s01e02.mkv', placed),
       ]
-      await hook({ files, destination, categorySettings: { newFolder: 'S01' }, log: () => {}, audit: () => {} } as unknown as Parameters<typeof hook>[0])
+      await hook({ files, destination, download: { name: 'Whatever.It.Was.Called' }, categorySettings: { newFolder: 'S01' }, log: () => {}, audit: () => {} } as unknown as Parameters<typeof hook>[0])
       expect(placed).toEqual(['S01/bla.s01e02.mkv'])
+    })
+  })
+
+  test('an obfuscated post goes by the download, folder and all', async () => {
+    await withDestination([], async (destination) => {
+      const release = 'From.S04E03.Merrily.We.Go.1080p.AMZN.WEBRip.DD.5.1.x265-ANARCHY'
+      const placed = await run(destination, ['2ea3afc453d04be4a1abe1c5f624ad7b.mkv'], 'S01', release)
+      expect(placed).toEqual([`S04/${release}/2ea3afc453d04be4a1abe1c5f624ad7b.mkv`])
+    })
+  })
+
+  test('an obfuscated post reuses a season folder already there, as any other does', async () => {
+    await withDestination(['Season 04'], async (destination) => {
+      const release = 'From.S04E03.Merrily.We.Go.1080p.AMZN.WEBRip.DD.5.1.x265-ANARCHY'
+      const placed = await run(destination, ['2ea3afc453d04be4a1abe1c5f624ad7b.mkv'], 'S01', release)
+      expect(placed).toEqual([`Season 04/${release}/2ea3afc453d04be4a1abe1c5f624ad7b.mkv`])
     })
   })
 })
