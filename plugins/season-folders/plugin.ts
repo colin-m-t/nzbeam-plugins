@@ -23,7 +23,7 @@ export default definePlugin({
   id: 'season-folders',
   name: 'Season folders',
   description: 'Puts episodes in the season folder they belong to.',
-  version: '0.2.0',
+  version: '0.3.0',
 
   // The SDK this was written against. `placeAt` arrived in 1.1: on an older app the plugin still
   // loads and its row says so, but the hook has no way to put anything anywhere.
