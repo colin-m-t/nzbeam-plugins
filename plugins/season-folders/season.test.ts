@@ -133,6 +133,38 @@ describe('what moves, and to which season', () => {
   })
 })
 
+describe('an obfuscated post, where only the download names the release', () => {
+  const obfuscated = '2ea3afc453d04be4a1abe1c5f624ad7b.mkv'
+  const release = 'From.S04E03.Merrily.We.Go.1080p.AMZN.WEBRip.DD.5.1.x265-ANARCHY'
+
+  test('falls back to the download, and moves the folder it would have landed in', () => {
+    expect(unitFor(file(obfuscated), release)).toEqual({ season: 4, path: `${release}/${obfuscated}` })
+  })
+
+  test('keeps the whole post together, whatever else came down with it', () => {
+    // Every file gets the same folder, so the release arrives in its season as it was posted.
+    expect(unitFor(file('sample.mkv'), release)?.path).toBe(`${release}/sample.mkv`)
+    expect(unitFor(file('subs/eng.srt'), release)?.path).toBe(`${release}/subs/eng.srt`)
+  })
+
+  test('is the last resort: anything the post itself says still wins', () => {
+    // The download says season 4; these say otherwise, and what came down is what counts.
+    expect(unitFor(file('bla.s01e03.mkv'), release)).toEqual({ season: 1, path: 'bla.s01e03.mkv' })
+    expect(unitFor(file('bla.s02e01/whatever.mkv'), release)).toEqual({ season: 2, path: 'bla.s02e01/whatever.mkv' })
+  })
+
+  test('leaves a pack alone, so opening it up still leaves its leftovers behind', () => {
+    // The pack names a season above the file, so there is something to go on and no falling back:
+    // dragging the nfo into the download's folder is the very thing opening the pack up avoided.
+    expect(unitFor(file('bla.s01.complete/release.nfo'), 'bla.s01.complete')).toBeNull()
+  })
+
+  test('says nothing when the download names no season either', () => {
+    expect(unitFor(file(obfuscated), 'Some.Film.2019.1080p.WEBRip.x264-GROUP')).toBeNull()
+    expect(unitFor(file(obfuscated))).toBeNull()
+  })
+})
+
 describe('naming a season folder that is not there yet', () => {
   test('writes two digits, in the shape asked for', () => {
     expect(seasonFolderName(1, 'S01')).toBe('S01')

@@ -14,6 +14,10 @@ import { seasonFolderName, seasonFolderOf, unitFor, type FolderStyle } from './s
  * A folder counts as the thing to move only when it names an episode. One that names a season and
  * no episode is a pack, so it is opened up and its episodes go to their seasons one by one — which
  * is what makes a pack spanning two seasons fall into both with nothing special written for it.
+ *
+ * An obfuscated post names nothing anywhere: its files come down as `2ea3afc4….mkv` and only the
+ * download knows what the release is. That is what the download's own name is for, and the folder
+ * it would have landed in is what moves, so the episode is still named where a library reads it.
  */
 export default definePlugin({
   id: 'season-folders',
@@ -43,7 +47,7 @@ export default definePlugin({
   },
 
   hooks: {
-    async 'download:beforeMove'({ files, destination, categorySettings, log, audit }) {
+    async 'download:beforeMove'({ files, destination, download, categorySettings, log, audit }) {
       const style = folderStyle(categorySettings.newFolder)
       // Read once: which seasons already have a folder, and what each is called. The app does no
       // case folding, so asking for `S01` where `s01` sits would make a second folder beside it.
@@ -51,7 +55,7 @@ export default definePlugin({
       const moved: string[] = []
 
       for (const file of files) {
-        const unit = unitFor(file)
+        const unit = unitFor(file, download.name)
         if (!unit) continue
 
         let folder = folders.get(unit.season)
