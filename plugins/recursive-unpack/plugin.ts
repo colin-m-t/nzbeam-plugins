@@ -28,7 +28,7 @@ export default definePlugin({
   id: 'recursive-unpack',
   name: 'Recursive unpack',
   description: 'Opens the archives that come out of an archive, as deep as they go.',
-  version: '0.1.0',
+  version: '0.2.0',
 
   // The SDK this was written against, written down rather than read from anywhere: it is what the
   // plugin claims, not what it happens to be running on.
