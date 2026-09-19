@@ -33,6 +33,7 @@ plugin's page.
 | an archive the image has no program for | **left alone**, with the reason in the log |
 | an archive that will not open — damaged, a volume missing, a password | **left alone**, with what the program said in the log |
 | the download's own archives, which the app already unpacked | never opened again |
+| several archives side by side | each opened into a folder named after it, so their contents do not mix |
 
 **Nothing here ever fails a download.** An archive that cannot be opened stays exactly where it
 is, so whoever looks at the folder afterwards still has the thing that failed, and the download
@@ -53,13 +54,34 @@ container* — and the download lands with the zip still in it.
 
 ### Where the files land
 
-Flat, beside the archive they came out of. A nested archive's own folders are not kept.
+Flat — a nested archive's own folders are not kept, because each unpacker lays them out
+differently and what comes out has to be somewhere the app will find it either way.
 
-That is on purpose rather than for want of trying: where the app takes the files from afterwards
-is not always a folder it reads all the way down, so a folder made in the wrong place would be
-left behind without a word. Beside the archive is somewhere the files are always found. The
-folders the download already had — the ones the app's own unpacking made — are untouched; an
-archive found inside one is opened inside that one.
+**Where that flat folder is depends on how many archives are being opened together.** One on its
+own is opened where it stands, beside its own files, so nothing gains a level for no reason:
+
+```
+before                          after
+└── Some.Album.7z               ├── 01 - one.flac
+    ├── 01 - one.flac           └── 02 - two.flac
+    └── 02 - two.flac
+```
+
+Several in one place each get a folder named after them, so four albums do not come out as one
+heap of songs with no way back to which was which:
+
+```
+before                          after
+├── Album One.7z                ├── Album One/
+│   └── 01 - song.flac          │   └── 01 - song.flac
+├── Album Two.7z                ├── Album Two/
+│   └── 01 - song.flac          │   └── 01 - song.flac
+└── cover.jpg                   └── cover.jpg
+```
+
+Each of those folders is then its own little world: an archive found inside one is opened inside
+it, by the same rule. The folders the download already had — the ones the app's own unpacking
+made — are untouched.
 
 A file that would land on a name already taken is renamed by the unpacker rather than overwriting
 it, except under `unzip`, which has no such option and overwrites. 7z lays the files out flat as it
