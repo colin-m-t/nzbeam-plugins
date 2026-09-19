@@ -1,5 +1,5 @@
 import type { Dirent } from 'node:fs'
-import { readdir, rm } from 'node:fs/promises'
+import { mkdir, readdir, rm } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { definePlugin } from 'nzbeam/sdk'
 import { archiveSets, UNPACKERS, type ArchiveSet } from './archives'
@@ -28,7 +28,7 @@ export default definePlugin({
   id: 'recursive-unpack',
   name: 'Recursive unpack',
   description: 'Opens the archives that come out of an archive, as deep as they go.',
-  version: '0.2.0',
+  version: '0.3.0',
 
   // The SDK this was written against, written down rather than read from anywhere: it is what the
   // plugin claims, not what it happens to be running on.
@@ -54,13 +54,18 @@ export default definePlugin({
       /** Every archive already looked at, so one that writes a copy of itself is not opened twice. */
       const seen = new Set<string>()
 
-      /** One archive, into the folder it sits in. Null when it is open, otherwise why it is not. */
-      const unpack = async (folder: string, set: ArchiveSet): Promise<string | null> => {
+      /**
+       * One archive, into `into`. Run from the folder the archive sits in, so the unpacker is
+       * given its plain name and never a path that could read as a switch.
+       *
+       * Null when it is open, otherwise why it is not.
+       */
+      const unpack = async (folder: string, into: string, set: ArchiveSet): Promise<string | null> => {
         let lastly = ''
         for (const unpacker of UNPACKERS[set.kind]) {
           let result
           try {
-            result = await run([unpacker.program, ...unpacker.args(set.first, folder)], { cwd: folder })
+            result = await run([unpacker.program, ...unpacker.args(set.first, into)], { cwd: folder })
           }
           catch (error) {
             // Nearly always the program is not in the image. Whatever it was, the next one may do.
@@ -82,32 +87,54 @@ export default definePlugin({
         const next = new Map<string, string[]>()
 
         for (const [folder, names] of pending) {
-          for (const set of archiveSets(names)) {
+          const sets = archiveSets(names).filter(set => !seen.has(join(folder, set.first)))
+          // Several archives opened into one folder tip their contents into one heap: four albums
+          // in four archives come out as one pile of songs, with no way back to which was which.
+          // So when there is more than one to open here, each gets a folder named after it. A lone
+          // archive is left beside its own files, where there is nothing to confuse it with and no
+          // level to climb for nothing.
+          const apart = sets.length > 1
+
+          for (const set of sets) {
             if (signal.aborted) return
-            const archive = join(folder, set.first)
-            if (seen.has(archive)) continue
-            seen.add(archive)
+            seen.add(join(folder, set.first))
+
+            const into = apart ? join(folder, set.base || set.first) : folder
+            if (apart) {
+              try {
+                await mkdir(into, { recursive: true })
+              }
+              catch (error) {
+                log(`left ${set.first} alone: ${error instanceof Error ? error.message : String(error)}`)
+                left.push(set.first)
+                continue
+              }
+            }
 
             // What was there before, so that what the unpacker wrote can be told from what was
-            // already beside it — which is the next round, and nothing else is.
-            const before = new Set((await entriesIn(folder)).map(entry => entry.name))
-            const why = await unpack(folder, set)
+            // already beside it — which is the next round, and nothing else is. A folder made for
+            // this archive alone is empty, and everything in it afterwards is its own.
+            const before = new Set((await entriesIn(into) ?? []).map(entry => entry.name))
+            const why = await unpack(folder, into, set)
             if (why) {
               log(`left ${set.first} alone: ${why}`)
               left.push(set.first)
+              // Nothing came out, so the folder made for it would go to the library empty.
+              if (apart) await pruneEmpty(into)
               continue
             }
 
-            const fresh = (await entriesIn(folder)).filter(entry => !before.has(entry.name))
+            const fresh = (await entriesIn(into) ?? []).filter(entry => !before.has(entry.name))
             // Only once it is open, so a set that could not be read is still there to try by hand.
+            // The pieces sit in `folder` whatever was unpacked where.
             for (const volume of set.volumes) await rm(join(folder, volume), { force: true })
             // 7z lays the files out flat as it is asked to and still makes the folders they were
             // in, which would otherwise be moved into the library empty.
-            for (const entry of fresh) if (entry.isDirectory()) await pruneEmpty(join(folder, entry.name))
+            for (const entry of fresh) if (entry.isDirectory()) await pruneEmpty(join(into, entry.name))
 
             opened.push(set.first)
             const made = fresh.filter(entry => entry.isFile()).map(entry => entry.name)
-            if (made.length > 0) next.set(folder, [...next.get(folder) ?? [], ...made])
+            if (made.length > 0) next.set(into, [...next.get(into) ?? [], ...made])
           }
         }
 
@@ -138,13 +165,13 @@ function byFolder(paths: readonly string[]): Map<string, string[]> {
   return folders
 }
 
-/** What is in `folder`; nothing when there is no such folder. */
-async function entriesIn(folder: string): Promise<Dirent[]> {
+/** What is in `folder`, or null when it could not be read — which is not the same as empty. */
+async function entriesIn(folder: string): Promise<Dirent[] | null> {
   try {
     return await readdir(folder, { withFileTypes: true })
   }
   catch {
-    return []
+    return null
   }
 }
 
@@ -154,6 +181,9 @@ async function entriesIn(folder: string): Promise<Dirent[]> {
  */
 async function pruneEmpty(folder: string): Promise<boolean> {
   const entries = await entriesIn(folder)
+  // Could not be read at all: that is not the same as holding nothing, and nothing is deleted on
+  // the strength of it. A folder that cannot be looked into is left exactly where it is.
+  if (entries === null) return false
   let empty = true
   for (const entry of entries) {
     if (entry.isDirectory() && await pruneEmpty(join(folder, entry.name))) continue

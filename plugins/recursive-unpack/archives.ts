@@ -69,6 +69,8 @@ export interface ArchiveSet {
   kind: ArchiveKind
   /** The piece to open. */
   first: string
+  /** What every piece of it shares, without the extension: what a folder for it is named after. */
+  base: string
   /** Every piece of the set, `first` included, in the order they come. Cleared away together. */
   volumes: string[]
 }
@@ -96,7 +98,7 @@ export function archiveSets(names: readonly string[]): ArchiveSet[] {
     group.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
     const first = group.find(piece => piece.leads)
     if (!first) continue
-    sets.push({ kind: first.kind, first: first.name, volumes: group.map(piece => piece.name) })
+    sets.push({ kind: first.kind, first: first.name, base: first.base, volumes: group.map(piece => piece.name) })
   }
   return sets.sort((a, b) => a.first.localeCompare(b.first))
 }
@@ -113,12 +115,13 @@ export interface Unpacker {
 }
 
 /**
- * Flat on purpose. What comes out is put beside the archive it came out of, rather than in folders
- * of its own, because where the app takes the files from afterwards is not always a folder it
- * reads all the way down — a download that never went through the unpacking step is moved by its
- * top-level files alone, and a folder made there would be left behind without a word. Beside it is
- * somewhere the files are always found, and a nested archive's own folders are a small thing to
- * give up for that.
+ * Flat on purpose, into whatever folder the caller names. The archive's own folders are given up
+ * because an unpacker that keeps them lays them out differently from one another, and what comes
+ * out has to be somewhere the app will find it either way.
+ *
+ * Where that folder is, is the caller's: beside the archive when it is the only one being opened
+ * there, and a folder of its own when it is not, so four albums in four archives do not come out
+ * as one heap of songs.
  */
 const unrar: Unpacker = {
   program: 'unrar',

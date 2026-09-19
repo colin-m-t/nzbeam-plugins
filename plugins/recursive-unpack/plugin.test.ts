@@ -25,14 +25,36 @@ function fakeUnpacker(holds: Record<string, string[]>, options: { missing?: stri
     const archive = command.map(argument => argument.replace(/^\.\//, '')).find(argument => holds[argument] !== undefined)!
     const code = options.codes?.[archive] ?? 0
     if (code <= 1) {
+      const into = targetOf(command, cwd)
       for (const name of holds[archive]!) {
-        if (name.endsWith('/')) await mkdir(join(cwd, name), { recursive: true })
-        else await Bun.write(join(cwd, name), 'x')
+        if (name.endsWith('/')) await mkdir(join(into, name), { recursive: true })
+        else await Bun.write(join(into, name), 'x')
       }
     }
     return { code, stdout: '', stderr: code > 1 ? 'the archive is damaged' : '' }
   }
   return { run, commands }
+}
+
+/**
+ * Where a command was told to put what it unpacks, as each of the three programs says it: `-o<dir>`
+ * for p7zip, `-d <dir>` for unzip, and a trailing `<dir>/` for unrar. The folder it runs in when
+ * it says nothing.
+ */
+function targetOf(command: string[], cwd: string): string {
+  const [program, ...rest] = command
+  // Read per program rather than by pattern: unrar's own `-or` starts with `-o` and means
+  // something else entirely, which is exactly the kind of thing this fake must not get wrong.
+  if (program === 'unrar') {
+    const last = rest.at(-1)!
+    return last.endsWith('/') ? last.slice(0, -1) : cwd
+  }
+  if (program === 'unzip') {
+    const dashD = rest.indexOf('-d')
+    return dashD !== -1 && rest[dashD + 1] ? rest[dashD + 1]! : cwd
+  }
+  const seven = rest.find(argument => argument.startsWith('-o') && argument.length > 2)
+  return seven ? seven.slice(2) : cwd
 }
 
 /** One of the files the app says it is about to move. */
@@ -67,7 +89,7 @@ interface RunOptions {
  * Runs the hook over a folder holding `onDisk`, and answers with what is in that folder afterwards
  * and what was logged. The folder is cleared away however the test ends.
  */
-async function runHook(options: RunOptions): Promise<{ left: string[], logs: string[], commands: string[][] }> {
+async function runHook(options: RunOptions): Promise<{ left: string[], tree: string[], logs: string[], commands: string[][] }> {
   const folder = await mkdtemp(join(tmpdir(), 'recursive-unpack-'))
   try {
     for (const name of options.onDisk ?? options.listed) await Bun.write(join(folder, name), 'x')
@@ -83,7 +105,7 @@ async function runHook(options: RunOptions): Promise<{ left: string[], logs: str
       log: (message: string) => logs.push(message),
       audit: () => {},
     } as unknown as Parameters<typeof hook>[0])
-    return { left: (await readdir(folder)).sort(), logs, commands }
+    return { left: (await readdir(folder)).sort(), tree: (await readdir(folder, { recursive: true })).sort(), logs, commands }
   }
   finally {
     await rm(folder, { recursive: true, force: true })
@@ -91,6 +113,40 @@ async function runHook(options: RunOptions): Promise<{ left: string[], logs: str
 }
 
 describe('the hook', () => {
+  test('gives each archive a folder of its own when several are opened in one place', async () => {
+    // Four albums in four archives. Opened where they stand, their songs would come out as one
+    // heap with no way back to which was which.
+    const { left, tree } = await runHook({
+      listed: ['Album One.7z', 'Album Two.7z', 'cover.jpg'],
+      holds: { 'Album One.7z': ['01 - one.flac'], 'Album Two.7z': ['01 - two.flac'] },
+    })
+    expect(left).toEqual(['Album One', 'Album Two', 'cover.jpg'])
+    expect(tree).toEqual([
+      'Album One',
+      join('Album One', '01 - one.flac'),
+      'Album Two',
+      join('Album Two', '01 - two.flac'),
+      'cover.jpg',
+    ].sort())
+  })
+
+  test('leaves a lone archive beside its own files, with no folder for nothing', async () => {
+    const { tree } = await runHook({
+      listed: ['Some.Album.7z'],
+      holds: { 'Some.Album.7z': ['01 - one.flac', '02 - two.flac'] },
+    })
+    expect(tree).toEqual(['01 - one.flac', '02 - two.flac'])
+  })
+
+  test('carries on into the folders it made, each on its own', async () => {
+    const { tree } = await runHook({
+      listed: ['One.7z', 'Two.7z'],
+      holds: { 'One.7z': ['inner.zip'], 'Two.7z': ['two.flac'], 'inner.zip': ['one.flac'] },
+    })
+    // The zip was the only archive in its folder, so what came out of it stayed there.
+    expect(tree).toEqual(['One', join('One', 'one.flac'), 'Two', join('Two', 'two.flac')].sort())
+  })
+
   test('opens an archive that came out of an archive, and clears it away', async () => {
     const { left } = await runHook({
       listed: ['inner.rar', 'release.nfo'],

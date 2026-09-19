@@ -9,7 +9,7 @@ import { archiveSets, UNPACKERS } from './archives'
 
 describe('archiveSets', () => {
   test('a rar on its own is its own set', () => {
-    expect(archiveSets(['bla.rar'])).toEqual([{ kind: 'rar', first: 'bla.rar', volumes: ['bla.rar'] }])
+    expect(archiveSets(['bla.rar'])).toEqual([{ kind: 'rar', first: 'bla.rar', base: 'bla', volumes: ['bla.rar'] }])
   })
 
   test('points at the lowest part of a split rar, and carries the rest with it', () => {
@@ -17,6 +17,7 @@ describe('archiveSets', () => {
     expect(sets).toEqual([{
       kind: 'rar',
       first: 'bla.part01.rar',
+      base: 'bla',
       volumes: ['bla.part01.rar', 'bla.part02.rar', 'bla.part03.rar'],
     }])
   })
@@ -26,6 +27,7 @@ describe('archiveSets', () => {
     expect(sets).toEqual([{
       kind: 'rar',
       first: 'bla.rar',
+      base: 'bla',
       volumes: ['bla.rar', 'bla.r00', 'bla.r01'],
     }])
   })
@@ -40,7 +42,7 @@ describe('archiveSets', () => {
 
   test('points at .001 of a split 7z', () => {
     const sets = archiveSets(['bla.7z.002', 'bla.7z.001'])
-    expect(sets).toEqual([{ kind: '7z', first: 'bla.7z.001', volumes: ['bla.7z.001', 'bla.7z.002'] }])
+    expect(sets).toEqual([{ kind: '7z', first: 'bla.7z.001', base: 'bla', volumes: ['bla.7z.001', 'bla.7z.002'] }])
   })
 
   test('leaves half an archive alone', () => {
@@ -59,7 +61,7 @@ describe('archiveSets', () => {
 
   test('gathers a set whose volumes are cased differently from its first', () => {
     const sets = archiveSets(['Bla.rar', 'bla.R00'])
-    expect(sets).toEqual([{ kind: 'rar', first: 'Bla.rar', volumes: ['Bla.rar', 'bla.R00'] }])
+    expect(sets).toEqual([{ kind: 'rar', first: 'Bla.rar', base: 'Bla', volumes: ['Bla.rar', 'bla.R00'] }])
   })
 
   test('is not interested in anything else', () => {
