@@ -37,6 +37,35 @@ export function parseTag(tag: string): { id: string, version: string } | null {
   return found ? { id: found[1]!, version: found[2]! } : null
 }
 
+/** Newest first: `1.10.0` is above `1.9.0`, which string order gets backwards. */
+function byVersion(a: string, b: string): number {
+  const left = a.split('.').map(Number)
+  const right = b.split('.').map(Number)
+  for (let part = 0; part < 3; part++) {
+    if (left[part] !== right[part]) return right[part]! - left[part]!
+  }
+  return 0
+}
+
+/**
+ * The newest version of `id` that has actually been released, read off the tags, or null when it
+ * has never been released.
+ *
+ * The tags are the record of what was published, and a manifest is only ever meant to agree with
+ * them: the release script is the one thing that moves a version, and it moves the manifest and
+ * the tag together. Anything that reads them apart is somebody having typed a version by hand.
+ *
+ * Needs the tags to be in the checkout — `actions/checkout` fetches none by default.
+ */
+export function releasedVersion(id: string): string | null {
+  const tags = capture(['git', 'tag', '--list', `${id}@*`]).split('\n').map(line => line.trim()).filter(Boolean)
+  const versions = tags.flatMap((tag) => {
+    const parsed = parseTag(tag)
+    return parsed && parsed.id === id ? [parsed.version] : []
+  })
+  return versions.sort(byVersion)[0] ?? null
+}
+
 /** What the tag's workflow attaches to the release, and what the index points at. */
 export function zipName(id: string, version: string): string {
   return `${id}-${version}.zip`

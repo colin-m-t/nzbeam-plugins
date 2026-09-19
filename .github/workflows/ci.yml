@@ -12,8 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The version check reads the tags, and checkout fetches none of them by default.
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       # Not every plugin has tests; `bun test` with nothing to run is a pass.
       - run: bun test
+      # A version written by hand, rather than by `bun run release`, publishes a version with a gap
+      # behind it. Pull requests only: a release pushes the bump and the tag one after the other, so
+      # a run on the push could start in the moment between them and fail for no reason.
+      - if: github.event_name == 'pull_request'
+        run: bun run check:versions

@@ -14,7 +14,7 @@
  * discipline from one word at release time to every commit, which is more room for mistakes.
  */
 
-import { capture, fail, listPluginIds, loadManifest, PLUGIN_ID_PATTERN, pluginEntry, readSdkVersion, run, tagName, tryRun } from './lib'
+import { capture, fail, listPluginIds, loadManifest, PLUGIN_ID_PATTERN, pluginEntry, readSdkVersion, releasedVersion, run, tagName, tryRun } from './lib'
 
 const LEVELS = ['patch', 'minor', 'major'] as const
 type Level = typeof LEVELS[number]
@@ -57,6 +57,19 @@ if (!dryRun) {
 
 const manifest = await loadManifest(id)
 if (manifest.id !== id) fail(`plugins/${id} calls itself "${manifest.id}". The folder's name is the id.`)
+
+// The number in the manifest is this script's to move, and it moves it together with the tag. One
+// that has run ahead of the tags was typed by hand, and bumping it again would publish a version
+// with a gap behind it — a hand-written 0.3.0 bumped by a minor is released as 0.4.0, and no 0.3.0
+// ever existed. Better to stop and say so than to publish something nobody meant.
+const released = releasedVersion(id)
+if (released !== null && manifest.version !== released) {
+  fail(
+    `plugins/${id} says ${manifest.version}, but the newest release is ${released}.\n`
+    + `Versions are this script's to set, never written by hand. Put the manifest back to ${released} and run this again;\n`
+    + `bumping ${manifest.version} would publish ${bump(manifest.version, level as Level)} and leave a version that never existed behind it.`,
+  )
+}
 
 const version = bump(manifest.version, level as Level)
 const tag = tagName(id, version)
